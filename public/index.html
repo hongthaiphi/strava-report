@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TCBS Running Club — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-5.4 14.3l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L5 10.3V16h2v-4.2l1.7-.8-1.6 8.3z" fill="currentColor"/>
+        </svg>
+        <span>TCBS Running Club</span>
+      </div>
+      <div id="auth-area">
+        <button id="login-btn" class="btn btn-primary" onclick="window.location='/auth/strava'">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598H10.01L7.174 6.172H4.34L9.489 16.34h3.065L7.405 6.172h2.836"/></svg>
+          Đăng nhập Strava
+        </button>
+        <div id="user-info" class="user-info hidden">
+          <img id="user-avatar" src="" alt="avatar" class="avatar" />
+          <span id="user-name"></span>
+          <a href="/auth/logout" class="btn btn-ghost">Đăng xuất</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Landing / not logged in -->
+    <section id="landing" class="landing hidden">
+      <div class="landing-content">
+        <div class="landing-icon">🏃</div>
+        <h1>TCBS Running Club</h1>
+        <p>Theo dõi thành tích chạy bộ của cả nhóm — km tích lũy, độ cao chinh phục, và bảng xếp hạng nội bộ.</p>
+        <button class="btn btn-primary btn-lg" onclick="window.location='/auth/strava'">
+          Kết nối với Strava
+        </button>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dashboard" class="hidden">
+      <div class="dashboard-header">
+        <div>
+          <h1 id="club-name">Loading…</h1>
+          <p id="club-location" class="subtitle"></p>
+        </div>
+        <div class="club-id-form">
+          <input id="club-id-input" type="text" placeholder="Club ID (nếu khác)" />
+          <button class="btn btn-secondary" onclick="loadStats()">Tải lại</button>
+          <button class="btn btn-primary" id="sync-btn" onclick="syncStrava()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+            Sync Strava
+          </button>
+        </div>
+        <p id="last-sync" class="last-sync"></p>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="stats-grid" id="summary-cards">
+        <div class="stat-card accent-orange">
+          <div class="stat-icon">🏃</div>
+          <div class="stat-value" id="total-distance">—</div>
+          <div class="stat-label">Tổng km chạy</div>
+        </div>
+        <div class="stat-card accent-blue">
+          <div class="stat-icon">⛰️</div>
+          <div class="stat-value" id="total-elevation">—</div>
+          <div class="stat-label">Tổng gain leo</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-icon">📅</div>
+          <div class="stat-value" id="total-runs">—</div>
+          <div class="stat-label">Tổng số buổi chạy</div>
+        </div>
+        <div class="stat-card accent-purple">
+          <div class="stat-icon">👟</div>
+          <div class="stat-value" id="total-members">—</div>
+          <div class="stat-label">Vận động viên</div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Km theo tháng</h3>
+          <canvas id="monthly-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Top 8 — Tổng km</h3>
+          <canvas id="member-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="card">
+        <div class="card-header">
+          <h2>🏆 Bảng xếp hạng</h2>
+          <div class="sort-tabs">
+            <button class="sort-btn active" data-sort="distance">Km</button>
+            <button class="sort-btn" data-sort="elevation">Gain</button>
+            <button class="sort-btn" data-sort="runs">Buổi</button>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table id="leaderboard">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Số buổi</th>
+                <th>Tổng km</th>
+                <th>Tổng gain</th>
+                <th>Xa nhất</th>
+                <th>Thời gian</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div id="loading" class="loading-screen hidden">
+      <div class="spinner"></div>
+      <p>Đang tải dữ liệu từ Strava…</p>
+    </div>
+
+    <div id="error-msg" class="error-banner hidden"></div>
+  </main>
+
+  <footer class="footer">
+    <p>Powered by <a href="https://www.strava.com" target="_blank">Strava API</a> · TCBS Running Club © 2025</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

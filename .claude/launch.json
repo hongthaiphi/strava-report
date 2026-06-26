@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "strava-report",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "require('dotenv').config({path:'.env.example'});const e=require('express'),a=e();a.use(e.static('public'));a.get('/api/me',(_,r)=>r.json({loggedIn:false}));a.listen(3030,()=>console.log('ok'))"],
+      "port": 3030
+    }
+  ]
+}
