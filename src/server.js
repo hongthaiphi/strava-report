@@ -57,9 +57,15 @@ async function ensureToken(req, res) {
 
 // --- OAuth ---
 
+function getBaseUrl(req) {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, '');
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  return `${proto}://${req.get('host')}`;
+}
+
 app.get('/auth/strava', (req, res) => {
   const scope = 'read,activity:read';
-  const redirectUri = `${req.protocol}://${req.get('host')}/auth/callback`;
+  const redirectUri = `${getBaseUrl(req)}/auth/callback`;
   const url = `https://www.strava.com/oauth/authorize?client_id=${process.env.STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
   res.redirect(url);
 });
