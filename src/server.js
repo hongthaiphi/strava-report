@@ -124,9 +124,11 @@ app.get('/api/debug', async (req, res) => {
     last5: runs.slice(0, 5).map(a => ({
       name: `${a.athlete_firstname} ${a.athlete_lastname}`,
       start_date: a.start_date,
+      created_at: a.created_at,
+      effective_date: a.start_date || a.created_at,
       type: a.type,
-      inWeek: new Date(a.start_date) >= weekStart,
-      inMonth: new Date(a.start_date) >= monthStart,
+      inWeek: new Date(a.start_date || a.created_at) >= weekStart,
+      inMonth: new Date(a.start_date || a.created_at) >= monthStart,
     })),
   });
 });
@@ -180,7 +182,8 @@ app.get('/api/club/stats', async (req, res) => {
       distance: a.distance,
       total_elevation_gain: a.total_elevation_gain,
       moving_time: a.moving_time,
-      start_date: a.start_date,
+      // Club API không trả start_date — dùng created_at (lúc sync) làm proxy
+      start_date: a.start_date || a.created_at,
     }));
 
     const members = strava.aggregateStats(normalized);
@@ -193,14 +196,14 @@ app.get('/api/club/stats', async (req, res) => {
 
     const recentActivities = activities
       .filter(a => a.type === 'Run')
-      .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
+      .sort((a, b) => new Date(b.start_date || b.created_at) - new Date(a.start_date || a.created_at))
       .slice(0, 50)
       .map(a => ({
         name: `${a.athlete_firstname} ${a.athlete_lastname}`,
         distance: a.distance,
         moving_time: a.moving_time,
         total_elevation_gain: a.total_elevation_gain,
-        start_date: a.start_date,
+        start_date: a.start_date || a.created_at,
       }));
 
     res.json({
