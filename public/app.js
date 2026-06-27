@@ -1,7 +1,11 @@
 let allMembers = [];
+let weeklyMembers = [];
+let monthMembers = [];
+let activePeriod = 'all';
 let sortKey = 'distance';
 let monthlyChart = null;
 let memberChart = null;
+let allMonthlyChart = null;
 
 async function init() {
   const res = await fetch('/api/me');
@@ -54,15 +58,13 @@ async function loadStats() {
   clearError();
   const clubIdInput = document.getElementById('club-id-input').value.trim();
   const url = clubIdInput ? `/api/club/stats?club_id=${clubIdInput}` : '/api/club/stats';
-
   try {
     const res = await fetch(url);
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || 'Không thể tải dữ liệu');
     }
-    const data = await res.json();
-    renderDashboard(data);
+    renderDashboard(await res.json());
   } catch (err) {
     showError(`Lỗi: ${err.message}`);
   } finally {
@@ -70,8 +72,7 @@ async function loadStats() {
   }
 }
 
-function renderDashboard({ club, summary, members, monthly, lastSync, recentActivities }) {
-  // Club info
+function renderDashboard({ club, summary, members, weekly, thisMonth, monthly, lastSync, recentActivities }) {
   document.getElementById('club-name').textContent = club.name || 'Running Club';
   const loc = [club.city, club.country].filter(Boolean).join(', ');
   document.getElementById('club-location').textContent = loc;
@@ -79,26 +80,64 @@ function renderDashboard({ club, summary, members, monthly, lastSync, recentActi
     ? `Cập nhật lần cuối: ${new Date(lastSync).toLocaleString('vi-VN')}`
     : 'Chưa sync lần nào';
 
-  // Summary
   document.getElementById('total-distance').textContent = fmt(summary.totalDistance / 1000, 1) + ' km';
   document.getElementById('total-elevation').textContent = fmt(summary.totalElevation) + ' m';
   document.getElementById('total-runs').textContent = summary.totalRuns.toLocaleString();
   document.getElementById('total-members').textContent = summary.totalMembers;
 
-  // Store members globally for re-sort
   allMembers = members;
-  renderLeaderboard(members);
+  weeklyMembers = weekly || [];
+  monthMembers = thisMonth || [];
+
+  switchPeriod(activePeriod, monthly);
   renderMonthlyChart(monthly);
   renderMemberChart(members);
   renderRecentActivities(recentActivities || []);
 }
 
+function switchPeriod(period, monthly) {
+  activePeriod = period;
+  const label = document.getElementById('period-label');
+  const chartWrap = document.getElementById('all-chart-wrap');
+  const tableWrap = document.getElementById('leaderboard-wrap');
+  const sortTabs = document.getElementById('sort-tabs');
+
+  document.querySelectorAll('.period-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.period === period)
+  );
+
+  if (period === 'all') {
+    label.classList.add('hidden');
+    chartWrap.classList.remove('hidden');
+    tableWrap.classList.add('hidden');
+    sortTabs.classList.add('hidden');
+    renderAllMonthlyChart(monthly || window._cachedMonthly);
+  } else {
+    chartWrap.classList.add('hidden');
+    tableWrap.classList.remove('hidden');
+    sortTabs.classList.remove('hidden');
+
+    if (period === 'week') {
+      const mon = getMondayLabel();
+      label.textContent = `Từ thứ Hai ${mon} đến nay`;
+      label.classList.remove('hidden');
+      renderLeaderboard(weeklyMembers);
+    } else if (period === 'month') {
+      const now = new Date();
+      const monthName = now.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+      label.textContent = `Tháng ${monthName}`;
+      label.classList.remove('hidden');
+      renderLeaderboard(monthMembers);
+    }
+  }
+}
+
 function renderLeaderboard(members) {
-  const maxDist = members[0]?.distance || 1;
   const sorted = [...members].sort((a, b) => b[sortKey] - a[sortKey]);
+  const maxVal = sorted[0]?.[sortKey] || 1;
   const tbody = document.getElementById('leaderboard-body');
   tbody.innerHTML = sorted.map((m, i) => {
-    const pct = (m.distance / maxDist * 100).toFixed(1);
+    const pct = (m[sortKey] / maxVal * 100).toFixed(1);
     return `<tr>
       <td><span class="rank-badge rank-${i + 1}">${i + 1}</span></td>
       <td><strong>${m.name}</strong></td>
@@ -115,13 +154,48 @@ function renderLeaderboard(members) {
       <td>${fmt(m.longest_run / 1000, 1)} km</td>
       <td>${fmtTime(m.moving_time)}</td>
     </tr>`;
-  }).join('');
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Chưa có dữ liệu</td></tr>';
+}
+
+function renderAllMonthlyChart(monthly) {
+  if (!monthly) return;
+  window._cachedMonthly = monthly;
+  const labels = Object.keys(monthly).sort();
+  const distances = labels.map(k => +(monthly[k].distance / 1000).toFixed(1));
+
+  if (allMonthlyChart) allMonthlyChart.destroy();
+  const ctx = document.getElementById('all-monthly-chart').getContext('2d');
+  allMonthlyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels.map(l => {
+        const [y, m] = l.split('-');
+        return new Date(y, m - 1).toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' });
+      }),
+      datasets: [{
+        label: 'Tổng km',
+        data: distances,
+        backgroundColor: '#fc4c02cc',
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} km` } },
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => v + ' km' } },
+        x: { grid: { display: false } },
+      },
+    },
+  });
 }
 
 function renderMonthlyChart(monthly) {
   const labels = Object.keys(monthly).sort();
   const distances = labels.map(k => +(monthly[k].distance / 1000).toFixed(1));
-
   if (monthlyChart) monthlyChart.destroy();
   const ctx = document.getElementById('monthly-chart').getContext('2d');
   monthlyChart = new Chart(ctx, {
@@ -131,12 +205,7 @@ function renderMonthlyChart(monthly) {
         const [y, m] = l.split('-');
         return new Date(y, m - 1).toLocaleDateString('vi-VN', { month: 'short', year: '2-digit' });
       }),
-      datasets: [{
-        label: 'Km',
-        data: distances,
-        backgroundColor: '#fc4c02cc',
-        borderRadius: 6,
-      }],
+      datasets: [{ label: 'Km', data: distances, backgroundColor: '#fc4c02cc', borderRadius: 6 }],
     },
     options: {
       responsive: true,
@@ -160,10 +229,7 @@ function renderMemberChart(members) {
       datasets: [{
         label: 'km',
         data: top.map(m => +(m.distance / 1000).toFixed(1)),
-        backgroundColor: [
-          '#fc4c02', '#3b82f6', '#22c55e', '#a855f7',
-          '#f59e0b', '#06b6d4', '#ec4899', '#84cc16',
-        ],
+        backgroundColor: ['#fc4c02','#3b82f6','#22c55e','#a855f7','#f59e0b','#06b6d4','#ec4899','#84cc16'],
         borderRadius: 6,
       }],
     },
@@ -185,18 +251,13 @@ function renderRecentActivities(activities) {
   tbody.innerHTML = activities.map(a => {
     const dt = new Date(a.start_date);
     const dateStr = dt.toLocaleDateString('vi-VN', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
+      timeZone: 'Asia/Ho_Chi_Minh', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
     });
     const timeStr = dt.toLocaleTimeString('vi-VN', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      hour: '2-digit', minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit',
     });
     return `<tr>
-      <td>
-        <span class="date-str">${dateStr}</span>
-        <span class="time-str">${timeStr}</span>
-      </td>
+      <td><span class="date-str">${dateStr}</span><span class="time-str">${timeStr}</span></td>
       <td><strong>${a.name}</strong></td>
       <td>${fmt(a.distance / 1000, 2)} km</td>
       <td>${fmt(a.total_elevation_gain)} m</td>
@@ -205,15 +266,30 @@ function renderRecentActivities(activities) {
   }).join('');
 }
 
+// Period tabs
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchPeriod(btn.dataset.period, window._cachedMonthly));
+});
+
 // Sort tabs
 document.querySelectorAll('.sort-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     sortKey = btn.dataset.sort;
-    if (allMembers.length) renderLeaderboard(allMembers);
+    const data = activePeriod === 'week' ? weeklyMembers : monthMembers;
+    renderLeaderboard(data);
   });
 });
+
+function getMondayLabel() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diff);
+  return mon.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 function fmt(n, decimals = 0) {
   return Number(n).toLocaleString('vi-VN', { maximumFractionDigits: decimals });

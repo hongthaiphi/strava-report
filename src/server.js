@@ -150,6 +150,8 @@ app.get('/api/club/stats', async (req, res) => {
     }));
 
     const members = strava.aggregateStats(normalized);
+    const weekly = strava.getWeeklyStats(normalized);
+    const thisMonth = strava.getThisMonthStats(normalized);
     const monthly = strava.getMonthlyStats(normalized);
     const totalDistance = members.reduce((s, m) => s + m.distance, 0);
     const totalElevation = members.reduce((s, m) => s + m.elevation, 0);
@@ -172,6 +174,8 @@ app.get('/api/club/stats', async (req, res) => {
       lastSync,
       summary: { totalDistance, totalElevation, totalRuns, totalMembers: members.length },
       members,
+      weekly,
+      thisMonth,
       recentActivities,
       monthly,
     });

@@ -103,14 +103,29 @@
       <div class="card">
         <div class="card-header">
           <h2>🏆 Bảng xếp hạng</h2>
-          <div class="sort-tabs">
-            <button class="sort-btn active" data-sort="distance">Km</button>
-            <button class="sort-btn" data-sort="elevation">Gain</button>
-            <button class="sort-btn" data-sort="runs">Buổi</button>
+          <div class="tab-group">
+            <div class="period-tabs">
+              <button class="period-btn active" data-period="all">Tất cả</button>
+              <button class="period-btn" data-period="month">Tháng này</button>
+              <button class="period-btn" data-period="week">Tuần này</button>
+            </div>
+            <div class="sort-tabs" id="sort-tabs">
+              <button class="sort-btn active" data-sort="distance">Km</button>
+              <button class="sort-btn" data-sort="elevation">Gain</button>
+              <button class="sort-btn" data-sort="runs">Buổi</button>
+            </div>
           </div>
         </div>
-        <div class="table-wrapper">
-          <table id="leaderboard">
+        <p id="period-label" class="week-label hidden"></p>
+
+        <!-- Biểu đồ cột theo tháng (chỉ hiện ở tab Tất cả) -->
+        <div id="all-chart-wrap" class="all-chart-wrap">
+          <canvas id="all-monthly-chart"></canvas>
+        </div>
+
+        <!-- Bảng xếp hạng (ẩn ở tab Tất cả) -->
+        <div id="leaderboard-wrap" class="table-wrapper hidden">
+          <table>
             <thead>
               <tr>
                 <th>#</th>

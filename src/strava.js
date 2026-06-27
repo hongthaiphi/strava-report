@@ -94,6 +94,40 @@ function aggregateStats(activities) {
   return Object.values(members).sort((a, b) => b.distance - a.distance);
 }
 
+function getWeekStart() {
+  // Thứ Hai đầu tuần hiện tại, tính theo UTC+7
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const day = now.getDay(); // 0=Sun, 1=Mon...
+  const diff = (day === 0 ? -6 : 1 - day); // khoảng cách đến thứ Hai
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function getWeeklyStats(activities) {
+  const weekStart = getWeekStart();
+  const thisWeek = activities.filter(a => {
+    if (a.type !== 'Run') return false;
+    const actDate = new Date(new Date(a.start_date).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    return actDate >= weekStart;
+  });
+  return aggregateStats(thisWeek);
+}
+
+function getThisMonthStats(activities) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const monthStart = new Date(y, m, 1);
+  const thisMonth = activities.filter(a => {
+    if (a.type !== 'Run') return false;
+    const actDate = new Date(new Date(a.start_date).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    return actDate >= monthStart;
+  });
+  return aggregateStats(thisMonth);
+}
+
 function getMonthlyStats(activities) {
   const monthly = {};
   for (const act of activities) {
@@ -115,5 +149,7 @@ module.exports = {
   getClubInfo,
   getAthleteActivities,
   aggregateStats,
+  getWeeklyStats,
+  getThisMonthStats,
   getMonthlyStats,
 };
