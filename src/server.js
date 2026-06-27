@@ -97,6 +97,40 @@ app.get('/auth/logout', (req, res) => {
 
 // --- API ---
 
+app.get('/api/debug', async (req, res) => {
+  const clubId = req.query.club_id || process.env.STRAVA_CLUB_ID;
+  const activities = await db.getActivities(clubId);
+  const runs = activities.filter(a => a.type === 'Run');
+  const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+  const now = new Date();
+  const vnNow = new Date(now.getTime() + VN_OFFSET_MS);
+  const day = vnNow.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(vnNow);
+  monday.setUTCDate(vnNow.getUTCDate() + diff);
+  monday.setUTCHours(0, 0, 0, 0);
+  const weekStart = new Date(monday.getTime() - VN_OFFSET_MS);
+  const firstDay = new Date(vnNow);
+  firstDay.setUTCDate(1);
+  firstDay.setUTCHours(0, 0, 0, 0);
+  const monthStart = new Date(firstDay.getTime() - VN_OFFSET_MS);
+
+  res.json({
+    serverTimeUTC: now.toISOString(),
+    vnTime: vnNow.toISOString(),
+    weekStart: weekStart.toISOString(),
+    monthStart: monthStart.toISOString(),
+    totalRuns: runs.length,
+    last5: runs.slice(0, 5).map(a => ({
+      name: `${a.athlete_firstname} ${a.athlete_lastname}`,
+      start_date: a.start_date,
+      type: a.type,
+      inWeek: new Date(a.start_date) >= weekStart,
+      inMonth: new Date(a.start_date) >= monthStart,
+    })),
+  });
+});
+
 app.get('/api/me', (req, res) => {
   const session = getSession(req);
   if (!session) return res.json({ loggedIn: false });
