@@ -110,6 +110,9 @@ body {
 }
 .club-id-form input:focus { border-color: var(--orange); }
 .last-sync { color: var(--text-muted); font-size: .78rem; margin-top: 6px; }
+.badge { background: var(--bg); border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px; font-size: .78rem; color: var(--text-muted); font-weight: 600; }
+.date-str { display: block; font-weight: 600; font-size: .875rem; }
+.time-str { display: block; color: var(--text-muted); font-size: .78rem; margin-top: 2px; }
 
 /* STAT CARDS */
 .stats-grid {

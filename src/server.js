@@ -155,11 +155,24 @@ app.get('/api/club/stats', async (req, res) => {
     const totalElevation = members.reduce((s, m) => s + m.elevation, 0);
     const totalRuns = members.reduce((s, m) => s + m.runs, 0);
 
+    const recentActivities = activities
+      .filter(a => a.type === 'Run')
+      .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
+      .slice(0, 50)
+      .map(a => ({
+        name: `${a.athlete_firstname} ${a.athlete_lastname}`,
+        distance: a.distance,
+        moving_time: a.moving_time,
+        total_elevation_gain: a.total_elevation_gain,
+        start_date: a.start_date,
+      }));
+
     res.json({
       club: clubInfo,
       lastSync,
       summary: { totalDistance, totalElevation, totalRuns, totalMembers: members.length },
       members,
+      recentActivities,
       monthly,
     });
   } catch (err) {

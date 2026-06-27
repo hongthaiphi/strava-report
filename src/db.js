@@ -6,16 +6,25 @@ const supabase = createClient(
 );
 
 // Upsert danh sách activities vào bảng activities
+function makeActivityKey(clubId, a) {
+  // Club Activities API không trả về id, dùng composite key
+  const name = `${a.athlete.firstname}_${a.athlete.lastname}`;
+  const date = a.start_date || '';
+  const dist = Math.round(a.distance || 0);
+  return `${clubId}_${name}_${date}_${dist}`;
+}
+
 async function upsertActivities(clubId, activities) {
   if (!activities.length) return;
   const seen = new Set();
   const unique = activities.filter(a => {
-    if (seen.has(a.id)) return false;
-    seen.add(a.id);
+    const key = makeActivityKey(clubId, a);
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
   const rows = unique.map(a => ({
-    strava_id: String(a.id),
+    strava_id: makeActivityKey(clubId, a),
     club_id: String(clubId),
     athlete_firstname: a.athlete.firstname,
     athlete_lastname: a.athlete.lastname,

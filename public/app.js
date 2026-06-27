@@ -70,7 +70,7 @@ async function loadStats() {
   }
 }
 
-function renderDashboard({ club, summary, members, monthly, lastSync }) {
+function renderDashboard({ club, summary, members, monthly, lastSync, recentActivities }) {
   // Club info
   document.getElementById('club-name').textContent = club.name || 'Running Club';
   const loc = [club.city, club.country].filter(Boolean).join(', ');
@@ -90,6 +90,7 @@ function renderDashboard({ club, summary, members, monthly, lastSync }) {
   renderLeaderboard(members);
   renderMonthlyChart(monthly);
   renderMemberChart(members);
+  renderRecentActivities(recentActivities || []);
 }
 
 function renderLeaderboard(members) {
@@ -176,6 +177,32 @@ function renderMemberChart(members) {
       },
     },
   });
+}
+
+function renderRecentActivities(activities) {
+  document.getElementById('activities-count').textContent = `${activities.length} buổi gần nhất`;
+  const tbody = document.getElementById('activities-body');
+  tbody.innerHTML = activities.map(a => {
+    const dt = new Date(a.start_date);
+    const dateStr = dt.toLocaleDateString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
+    });
+    const timeStr = dt.toLocaleTimeString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit', minute: '2-digit',
+    });
+    return `<tr>
+      <td>
+        <span class="date-str">${dateStr}</span>
+        <span class="time-str">${timeStr}</span>
+      </td>
+      <td><strong>${a.name}</strong></td>
+      <td>${fmt(a.distance / 1000, 2)} km</td>
+      <td>${fmt(a.total_elevation_gain)} m</td>
+      <td>${fmtTime(a.moving_time)}</td>
+    </tr>`;
+  }).join('');
 }
 
 // Sort tabs
