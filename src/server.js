@@ -43,8 +43,9 @@ async function ensureToken(req, res) {
   const now = Math.floor(Date.now() / 1000);
   if (session.expiresAt - now < 300) {
     const refreshed = await strava.refreshToken(session.refreshToken);
+    const { iat, exp, ...rest } = session;
     const newSession = {
-      ...session,
+      ...rest,
       accessToken: refreshed.access_token,
       refreshToken: refreshed.refresh_token,
       expiresAt: refreshed.expires_at,
