@@ -94,38 +94,44 @@ function aggregateStats(activities) {
   return Object.values(members).sort((a, b) => b.distance - a.distance);
 }
 
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000; // UTC+7
+
+// Chuyển UTC timestamp sang "ngày giờ Việt Nam" dưới dạng UTC Date để so sánh
+function toVnDate(date) {
+  return new Date(new Date(date).getTime() + VN_OFFSET_MS);
+}
+
 function getWeekStart() {
-  // Thứ Hai đầu tuần hiện tại, tính theo UTC+7
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-  const day = now.getDay(); // 0=Sun, 1=Mon...
-  const diff = (day === 0 ? -6 : 1 - day); // khoảng cách đến thứ Hai
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const vnNow = toVnDate(new Date());
+  const day = vnNow.getUTCDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(vnNow);
+  monday.setUTCDate(vnNow.getUTCDate() + diff);
+  monday.setUTCHours(0, 0, 0, 0);
+  // Trả về UTC tương ứng với 00:00 thứ Hai giờ VN
+  return new Date(monday.getTime() - VN_OFFSET_MS);
+}
+
+function getMonthStart() {
+  const vnNow = toVnDate(new Date());
+  const firstDay = new Date(vnNow);
+  firstDay.setUTCDate(1);
+  firstDay.setUTCHours(0, 0, 0, 0);
+  return new Date(firstDay.getTime() - VN_OFFSET_MS);
 }
 
 function getWeeklyStats(activities) {
   const weekStart = getWeekStart();
-  const thisWeek = activities.filter(a => {
-    if (a.type !== 'Run') return false;
-    const actDate = new Date(new Date(a.start_date).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    return actDate >= weekStart;
-  });
-  return aggregateStats(thisWeek);
+  return aggregateStats(activities.filter(a =>
+    a.type === 'Run' && new Date(a.start_date) >= weekStart
+  ));
 }
 
 function getThisMonthStats(activities) {
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const monthStart = new Date(y, m, 1);
-  const thisMonth = activities.filter(a => {
-    if (a.type !== 'Run') return false;
-    const actDate = new Date(new Date(a.start_date).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    return actDate >= monthStart;
-  });
-  return aggregateStats(thisMonth);
+  const monthStart = getMonthStart();
+  return aggregateStats(activities.filter(a =>
+    a.type === 'Run' && new Date(a.start_date) >= monthStart
+  ));
 }
 
 function getMonthlyStats(activities) {
